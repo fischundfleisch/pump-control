@@ -15,6 +15,8 @@ const unsigned long DISPLAY_SLEEP = 1UL * 60UL *1000UL;
 unsigned long scan_timer_ =0;
 unsigned long sleep_timer_ = 0;
 
+bool pump_on = false;
+
 void setup() {
   pinMode(DISPLAY_ON, OUTPUT);
   digitalWrite(DISPLAY_ON, HIGH);
@@ -41,21 +43,30 @@ void loop() {
   long duration = 0;
   long distance = 0;
 
-  int button_state = 0;
-
-
-button_state = digitalRead(BUTTON_1);
+  bool button_state = digitalRead(BUTTON_1);
 Serial.println(button_state);
-  if (button_state == LOW) {
+  if (button_state == LOW && pump_on ==false) {
     digitalWrite(DISPLAY_ON, HIGH);
+    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Pumpe 1 an");
     sleep_timer_ = millis();
-    Serial.println("Button gedrückt");
+    Serial.println("Pumpe ein");
+    pump_on = true;
+  }
+  else if (button_state == LOW && pump_on == true){
+    digitalWrite(DISPLAY_ON, HIGH);
+    lcd.clear();
+    lcd.setCursor(0,0);
+    lcd.print("Pumpe 1 aus");
+    sleep_timer_ = millis();
+    Serial.println("Pumpe aus");
+    pump_on = false;
   }
 
   if (timespan_display > DISPLAY_SLEEP){
-    digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
+    lcd.noDisplay();
+    //digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
   }
 
   if (time_span > SCAN_FREQ) {
@@ -66,6 +77,7 @@ Serial.println(button_state);
     digitalWrite(TRIGGER, LOW);
     duration = pulseIn(ECHO, HIGH); //returns micros
     distance = ((duration/2.) *0.03432)+0.5; // +0.5 zum Runden
+    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Entfernung: ");
     lcd.setCursor(0,1);
