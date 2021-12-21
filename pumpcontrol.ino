@@ -44,6 +44,7 @@ void loop() {
     lcd.setCursor(0,1);
     lcd.print(distance);
     lcd.print(" cm");
+    scan_timer_ = (millis);
   }
 
   }
