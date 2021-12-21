@@ -46,17 +46,19 @@ void loop() {
   bool button_state = digitalRead(BUTTON_1);
 Serial.println(button_state);
   if (button_state == LOW && pump_on ==false) {
+    lcd.display();
     digitalWrite(DISPLAY_ON, HIGH);
-    lcd.clear();
+    digitalWrite(12, HIGH);
     lcd.setCursor(0,0);
-    lcd.print("Pumpe 1 an");
+    lcd.print("Pumpe 1 an ");
     sleep_timer_ = millis();
     Serial.println("Pumpe ein");
     pump_on = true;
   }
   else if (button_state == LOW && pump_on == true){
+    lcd.display();
+    digitalWrite(12, HIGH);
     digitalWrite(DISPLAY_ON, HIGH);
-    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Pumpe 1 aus");
     sleep_timer_ = millis();
@@ -66,6 +68,8 @@ Serial.println(button_state);
 
   if (timespan_display > DISPLAY_SLEEP){
     lcd.noDisplay();
+
+    //digitalWrite(12, LOW);
     //digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
   }
 
@@ -77,7 +81,6 @@ Serial.println(button_state);
     digitalWrite(TRIGGER, LOW);
     duration = pulseIn(ECHO, HIGH); //returns micros
     distance = ((duration/2.) *0.03432)+0.5; // +0.5 zum Runden
-    lcd.clear();
     lcd.setCursor(0,0);
     lcd.print("Entfernung: ");
     lcd.setCursor(0,1);
