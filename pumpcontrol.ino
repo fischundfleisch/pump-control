@@ -7,7 +7,7 @@ LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 const int TRIGGER = 7;
 const int ECHO = 6;
 const int DISPLAY_ON = 13;
-const int BUTTON_1 = 8;
+const int BUTTON_PIN = 8;
 const int BUTTON_2 = 9;
 const unsigned long SCAN_FREQ = 10UL*1000UL;
 const unsigned long DISPLAY_SLEEP = 1UL * 60UL *1000UL;
@@ -15,7 +15,7 @@ const unsigned long DISPLAY_SLEEP = 1UL * 60UL *1000UL;
 unsigned long scan_timer_ =0;
 unsigned long sleep_timer_ = 0;
 
-bool pump_on = false;
+int pump_state = 0; //0 = alles aus, 1 = manuell ein, 2 = automatik
 
 void setup() {
   pinMode(DISPLAY_ON, OUTPUT);
@@ -23,8 +23,7 @@ void setup() {
   pinMode(TRIGGER, OUTPUT);
   pinMode(ECHO, INPUT);
   digitalWrite(ECHO, LOW);
-  pinMode(BUTTON_1, INPUT);
-  digitalWrite(BUTTON_1, HIGH);
+  pinMode(BUTTON_PIN, INPUT);
   pinMode(BUTTON_2, INPUT);
   digitalWrite(BUTTON_2, HIGH);
   
@@ -43,34 +42,41 @@ void loop() {
   long duration = 0;
   long distance = 0;
 
-  bool button_state = digitalRead(BUTTON_1);
+  bool button_state = digitalRead(BUTTON_PIN);
 Serial.println(button_state);
-  if (button_state == LOW && pump_on ==false) {
-    lcd.display();
-    digitalWrite(DISPLAY_ON, HIGH);
-    digitalWrite(12, HIGH);
+  if (button_state == LOW && pump_state ==0) {
+//    lcd.display();
+//    digitalWrite(DISPLAY_ON, HIGH);
+//    digitalWrite(12, HIGH);
+    delay(1000);
     lcd.setCursor(0,0);
-    lcd.print("Pumpe 1 an ");
+    lcd.print("Pumpe 1 an      ");
     sleep_timer_ = millis();
-    Serial.println("Pumpe ein");
-    pump_on = true;
+    Serial.println("Pumpe manuell ein");
+    pump_state = 1;
   }
-  else if (button_state == LOW && pump_on == true){
-    lcd.display();
-    digitalWrite(12, HIGH);
-    digitalWrite(DISPLAY_ON, HIGH);
+  else if (button_state == LOW && pump_state == 1){
+//    lcd.display();
+//    digitalWrite(12, HIGH);
+//    digitalWrite(DISPLAY_ON, HIGH);
     lcd.setCursor(0,0);
-    lcd.print("Pumpe 1 aus");
+    lcd.print("Pumpe 1 aus     ");
     sleep_timer_ = millis();
-    Serial.println("Pumpe aus");
-    pump_on = false;
+    Serial.println("Pumpe manuell aus");
+    pump_state = 2;
+  }
+  else if (button_state == LOW && pump_state ==2){
+    lcd.setCursor(0,0);
+    lcd.print("Automatik ein   ");
+    Serial.println("Automatik eingeschaltet");
+    pump_state = 0;
   }
 
   if (timespan_display > DISPLAY_SLEEP){
     lcd.noDisplay();
 
-    //digitalWrite(12, LOW);
-    //digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
+    digitalWrite(12, LOW);
+    digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
   }
 
   if (time_span > SCAN_FREQ) {
