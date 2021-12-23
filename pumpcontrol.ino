@@ -4,31 +4,32 @@
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
-const int TRIGGER = 7;
-const int ECHO = 6;
-const int DISPLAY_ON = 13;
-const int BUTTON_PIN = 8;
-const int BUTTON_2 = 9;
-const unsigned long SCAN_FREQ = 10UL*1000UL;
-const unsigned long DISPLAY_SLEEP = 1UL * 60UL *1000UL;
+const int TRIGGER_PIN = 7;
+const int ECHO_PIN = 6;
+const int DISPLAY_PIN = 13;
+const int BUTTON1_PIN = 8;
+const int BUTTON2_PIN = 9;
+const unsigned long SCAN_FREQ = 10UL * 1000UL;
+const unsigned long DEBOUNCE = 1UL * 1000UL;
 
-unsigned long scan_timer_ =0;
-unsigned long sleep_timer_ = 0;
+unsigned long scan_timer_ = 0;
+unsigned long button1_timer_ = 0;
+unsigned long button2_timer_ =0;
 
-int pump_state = 0; //0 = alles aus, 1 = manuell ein, 2 = automatik
+int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus
+int pump2_state = 0;
 
 void setup() {
-  pinMode(DISPLAY_ON, OUTPUT);
-  digitalWrite(DISPLAY_ON, HIGH);
-  pinMode(TRIGGER, OUTPUT);
-  pinMode(ECHO, INPUT);
-  digitalWrite(ECHO, LOW);
-  pinMode(BUTTON_PIN, INPUT);
-  pinMode(BUTTON_2, INPUT);
-  digitalWrite(BUTTON_2, HIGH);
-  
+  pinMode(TRIGGER_PIN, OUTPUT);
+  pinMode(ECHO_PIN, INPUT);
+  digitalWrite(ECHO_PIN, LOW);
+  pinMode(DISPLAY_PIN, OUTPUT);
+  digitalWrite(DISPLAY_PIN, HIGH);
+  pinMode(BUTTON1_PIN, INPUT);
+  pinMode(BUTTON2_PIN, INPUT);
+
   lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
-  lcd.setCursor(0,0); //Position Zeichen 0, Zeile 0
+  lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
   lcd.print("Willkommen!");
   Serial.begin(9600);
   delay(1000);
@@ -37,62 +38,82 @@ void setup() {
 void loop() {
   unsigned long act_time = millis();
   unsigned long time_span = act_time - scan_timer_;
-  unsigned long timespan_display = act_time - sleep_timer_;
-  
+  unsigned long timespan_button1 = act_time - button1_timer_;
+  unsigned long timespan_button2 = act_time - button2_timer_;
+
   long duration = 0;
   long distance = 0;
 
-  bool button_state = digitalRead(BUTTON_PIN);
-Serial.println(button_state);
-  if (button_state == LOW && pump_state ==0) {
-//    lcd.display();
-//    digitalWrite(DISPLAY_ON, HIGH);
-//    digitalWrite(12, HIGH);
-    delay(1000);
-    lcd.setCursor(0,0);
-    lcd.print("Pumpe 1 an      ");
-    sleep_timer_ = millis();
-    Serial.println("Pumpe manuell ein");
-    pump_state = 1;
-  }
-  else if (button_state == LOW && pump_state == 1){
-//    lcd.display();
-//    digitalWrite(12, HIGH);
-//    digitalWrite(DISPLAY_ON, HIGH);
-    lcd.setCursor(0,0);
-    lcd.print("Pumpe 1 aus     ");
-    sleep_timer_ = millis();
-    Serial.println("Pumpe manuell aus");
-    pump_state = 2;
-  }
-  else if (button_state == LOW && pump_state ==2){
-    lcd.setCursor(0,0);
-    lcd.print("Automatik ein   ");
-    Serial.println("Automatik eingeschaltet");
-    pump_state = 0;
+  bool button1_state = digitalRead(BUTTON1_PIN);
+  bool button2_state = digitalRead(BUTTON2_PIN);
+
+  if (timespan_button1 > DEBOUNCE) {
+    if (button1_state == LOW) {
+      if (pump1_state == 0) {
+        lcd.setCursor(0, 0);
+        lcd.print("Pumpe 1 an      ");
+        Serial.println("Pumpe manuell ein");
+        pump1_state = 1;
+        button1_timer_ = millis();
+      }
+      else if (pump1_state == 1) {
+        lcd.setCursor(0, 0);
+        lcd.print("Pumpe 1 aus     ");
+        Serial.println("Pumpe manuell aus");
+        pump1_state = 2;
+        button1_timer_ = millis();
+      }
+      else if (pump1_state == 2) {
+        lcd.setCursor(0, 0);
+        lcd.print("Automatik 1 ein   ");
+        Serial.println("Automatik 1 eingeschaltet");
+        pump1_state = 0;
+        button1_timer_ = millis();
+      }
+    }
   }
 
-  if (timespan_display > DISPLAY_SLEEP){
-    lcd.noDisplay();
-
-    digitalWrite(12, LOW);
-    digitalWrite(DISPLAY_ON, LOW);  //schaltet Display ab
+    if (timespan_button2 > DEBOUNCE) {
+    if (button2_state == LOW) {
+      if (pump2_state == 0) {
+        lcd.setCursor(0, 0);
+        lcd.print("Pumpe 2 an      ");
+        Serial.println("Pumpe manuell ein");
+        pump2_state = 1;
+        button2_timer_ = millis();
+      }
+      else if (pump2_state == 1) {
+        lcd.setCursor(0, 0);
+        lcd.print("Pumpe 2 aus     ");
+        Serial.println("Pumpe manuell aus");
+        pump2_state = 2;
+        button2_timer_ = millis();
+      }
+      else if (pump2_state == 2) {
+        lcd.setCursor(0, 0);
+        lcd.print("Automatik 2 ein ");
+        Serial.println("Automatik 2 eingeschaltet");
+        pump2_state = 0;
+        button2_timer_ = millis();
+      }
+    }
   }
+
 
   if (time_span > SCAN_FREQ) {
-    digitalWrite(TRIGGER, LOW);
+    digitalWrite(TRIGGER_PIN, LOW);
     delay(5);
-    digitalWrite(TRIGGER, HIGH);
+    digitalWrite(TRIGGER_PIN, HIGH);
     delay(10);
-    digitalWrite(TRIGGER, LOW);
-    duration = pulseIn(ECHO, HIGH); //returns micros
-    distance = ((duration/2.) *0.03432)+0.5; // +0.5 zum Runden
-    lcd.setCursor(0,0);
+    digitalWrite(TRIGGER_PIN, LOW);
+    duration = pulseIn(ECHO_PIN, HIGH); //returns micros
+    distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
+    lcd.setCursor(0, 0);
     lcd.print("Entfernung: ");
-    lcd.setCursor(0,1);
+    lcd.setCursor(0, 1);
     lcd.print(distance);
     lcd.print(" cm");
     scan_timer_ = millis();
   }
 
-  }
+}
