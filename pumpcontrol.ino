@@ -1,4 +1,6 @@
 // todo: Timeout = 5 Minuten, nach jedem Button pressen timeout = 0, if timeout = 5 minuten, DISPLAY_ON = LOW
+// README: 
+// Fehler 418: Teekessel hat zu wenig/zu viel Wasser, falscher Wert (passiert zb bei Wassertropfen am Ultraschall
 
 
 #include <LiquidCrystal.h>
@@ -9,15 +11,20 @@ const int ECHO_PIN = 6;
 const int DISPLAY_PIN = 13;
 const int BUTTON1_PIN = 8;
 const int BUTTON2_PIN = 9;
+const int PUMP1_PIN = 10;
 const unsigned long SCAN_FREQ = 10UL * 1000UL;
 const unsigned long DEBOUNCE = 1UL * 1000UL;
+const unsigned long PUMP1_ON = 1UL * 60UL * 1000UL;
 
 unsigned long scan_timer_ = 0;
 unsigned long button1_timer_ = 0;
-unsigned long button2_timer_ =0;
+unsigned long button2_timer_ = 0;
+unsigned long pump1_timer_ = 0;
 
-int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus
+int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
 int pump2_state = 0;
+
+long dist_cm = 0;
 
 void setup() {
   pinMode(TRIGGER_PIN, OUTPUT);
@@ -27,6 +34,8 @@ void setup() {
   digitalWrite(DISPLAY_PIN, HIGH);
   pinMode(BUTTON1_PIN, INPUT);
   pinMode(BUTTON2_PIN, INPUT);
+  pinMode(PUMP1_PIN, OUTPUT);
+  digitalWrite(PUMP1_PIN, HIGH);    // fürs Relais muss HIGH für aus, LOW für an sein
 
   lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
   lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
@@ -35,14 +44,62 @@ void setup() {
   delay(1000);
 }
 
-void loop() {
-  unsigned long act_time = millis();
-  unsigned long time_span = act_time - scan_timer_;
-  unsigned long timespan_button1 = act_time - button1_timer_;
-  unsigned long timespan_button2 = act_time - button2_timer_;
+void automatik() {
+  unsigned long timespan_pump1 = millis() - pump1_timer_;
 
+  if (dist_cm >= 2 && dist_cm < 50) {       // wenn Distanz passt...
+    if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
+      if (pump1_state == 4 || pump1_state == 0) {   // und Pumpe vorher nicht an war oder per Hand gerade auf Automatik gestellt wurde...
+        digitalWrite(PUMP1_PIN, LOW);             // wird Pumpe eingeschaltet
+        lcd.setCursor(0,0);
+        lcd.print("Pumpe 1 Aut ON  ");
+        pump1_timer_ = millis();
+        pump1_state = 3;
+      }
+      else {
+        digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
+        lcd.setCursor(0,0);
+        lcd.print("Pumpe 1 AUT OFF  ");
+        pump1_timer_ = millis();
+        pump1_state = 4;
+      }
+    }
+  }
+  else {
+    digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
+    lcd.setCursor(0,0);
+    lcd.print("Fehler 418");
+  }
+}
+
+void get_Distance() {
+  unsigned long time_span = millis() - scan_timer_;
   long duration = 0;
   long distance = 0;
+
+  if (time_span > SCAN_FREQ) {
+    digitalWrite(TRIGGER_PIN, LOW);
+    delay(5);
+    digitalWrite(TRIGGER_PIN, HIGH);
+    delay(10);
+    digitalWrite(TRIGGER_PIN, LOW);
+    duration = pulseIn(ECHO_PIN, HIGH); //returns micros
+    distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
+    dist_cm = distance;
+
+    lcd.setCursor(0, 0);
+    lcd.print("Entfernung: ");
+    lcd.setCursor(0, 1);
+    lcd.print(distance);
+    lcd.print(" cm");
+    scan_timer_ = millis();
+  }
+}
+
+void loop() {
+  unsigned long act_time = millis();
+  unsigned long timespan_button1 = act_time - button1_timer_;
+  unsigned long timespan_button2 = act_time - button2_timer_;
 
   bool button1_state = digitalRead(BUTTON1_PIN);
   bool button2_state = digitalRead(BUTTON2_PIN);
@@ -73,7 +130,7 @@ void loop() {
     }
   }
 
-    if (timespan_button2 > DEBOUNCE) {
+  if (timespan_button2 > DEBOUNCE) {
     if (button2_state == LOW) {
       if (pump2_state == 0) {
         lcd.setCursor(0, 0);
@@ -98,22 +155,6 @@ void loop() {
       }
     }
   }
-
-
-  if (time_span > SCAN_FREQ) {
-    digitalWrite(TRIGGER_PIN, LOW);
-    delay(5);
-    digitalWrite(TRIGGER_PIN, HIGH);
-    delay(10);
-    digitalWrite(TRIGGER_PIN, LOW);
-    duration = pulseIn(ECHO_PIN, HIGH); //returns micros
-    distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
-    lcd.setCursor(0, 0);
-    lcd.print("Entfernung: ");
-    lcd.setCursor(0, 1);
-    lcd.print(distance);
-    lcd.print(" cm");
-    scan_timer_ = millis();
-  }
+  get_Distance();
 
 }
