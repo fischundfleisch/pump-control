@@ -1,4 +1,4 @@
-// todo: Timeout = 5 Minuten, nach jedem Button pressen timeout = 0, if timeout = 5 minuten, DISPLAY_ON = LOW
+// HILFE! Fehler 418 in Zeile 71 überschreibt auch den Button-Druck. Temporary Workaround: Etwas im richtigen Abstand unter den Ultraschall halten um zu pumpen
 // README: 
 // Fehler 418: Teekessel hat zu wenig/zu viel Wasser, falscher Wert (passiert zb bei Wassertropfen am Ultraschall
 
@@ -44,7 +44,7 @@ void setup() {
   delay(1000);
 }
 
-void automatik() {
+void automatik() {                            // derzeit nur für PUMPE 1!!
   unsigned long timespan_pump1 = millis() - pump1_timer_;
 
   if (dist_cm >= 2 && dist_cm < 50) {       // wenn Distanz passt...
@@ -68,7 +68,7 @@ void automatik() {
   else {
     digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
     lcd.setCursor(0,0);
-    lcd.print("Fehler 418");
+    lcd.print("Fehler 418      ");
   }
 }
 
@@ -87,11 +87,10 @@ void get_Distance() {
     distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
     dist_cm = distance;
 
-    lcd.setCursor(0, 0);
-    lcd.print("Entfernung: ");
     lcd.setCursor(0, 1);
+    lcd.print("Abstand: ");
     lcd.print(distance);
-    lcd.print(" cm");
+    lcd.print(" cm  ");
     scan_timer_ = millis();
   }
 }
@@ -111,6 +110,7 @@ void loop() {
         lcd.print("Pumpe 1 an      ");
         Serial.println("Pumpe manuell ein");
         pump1_state = 1;
+        digitalWrite(PUMP1_PIN, LOW);
         button1_timer_ = millis();
       }
       else if (pump1_state == 1) {
@@ -118,6 +118,7 @@ void loop() {
         lcd.print("Pumpe 1 aus     ");
         Serial.println("Pumpe manuell aus");
         pump1_state = 2;
+        digitalWrite(PUMP1_PIN, HIGH);
         button1_timer_ = millis();
       }
       else if (pump1_state == 2) {
@@ -126,6 +127,7 @@ void loop() {
         Serial.println("Automatik 1 eingeschaltet");
         pump1_state = 0;
         button1_timer_ = millis();
+        automatik();
       }
     }
   }
@@ -156,5 +158,6 @@ void loop() {
     }
   }
   get_Distance();
+  automatik();
 
 }
