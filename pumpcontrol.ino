@@ -21,10 +21,9 @@ unsigned long button1_timer_ = 0;
 unsigned long button2_timer_ = 0;
 unsigned long pump1_timer_ = 0;
 
-int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
-int pump2_state = 0;
+int pump1_state_ = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
+int pump2_state_ = 0;
 
-long dist_cm = 0;
 
 void setup() {
   pinMode(TRIGGER_PIN, OUTPUT);
@@ -44,7 +43,7 @@ void setup() {
   delay(1000);
 }
 
-void automatik() {                            // derzeit nur für PUMPE 1!!
+void automatik(long distance_cm) {                            // derzeit nur für PUMPE 1!!
   unsigned long timespan_pump1 = millis() - pump1_timer_;
 
   if (dist_cm >= 2 && dist_cm < 50) {       // wenn Distanz passt...
@@ -54,14 +53,14 @@ void automatik() {                            // derzeit nur für PUMPE 1!!
         lcd.setCursor(0,0);
         lcd.print("Pumpe 1 Aut ON  ");
         pump1_timer_ = millis();
-        pump1_state = 3;
+        pump1_state_ = 3;
       }
       else {
         digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
         lcd.setCursor(0,0);
         lcd.print("Pumpe 1 AUT OFF  ");
         pump1_timer_ = millis();
-        pump1_state = 4;
+        pump1_state_ = 4;
       }
     }
   }
@@ -85,7 +84,6 @@ void get_Distance() {
     digitalWrite(TRIGGER_PIN, LOW);
     duration = pulseIn(ECHO_PIN, HIGH); //returns micros
     distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
-    dist_cm = distance;
 
     lcd.setCursor(0, 1);
     lcd.print("Abstand: ");
@@ -93,6 +91,8 @@ void get_Distance() {
     lcd.print(" cm  ");
     scan_timer_ = millis();
   }
+  
+  return distance;      // distance? oder distance_cm?
 }
 
 void loop() {
@@ -109,7 +109,7 @@ void loop() {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 an      ");
         Serial.println("Pumpe manuell ein");
-        pump1_state = 1;
+        pump1_state_ = 1;
         digitalWrite(PUMP1_PIN, LOW);
         button1_timer_ = millis();
       }
@@ -117,7 +117,7 @@ void loop() {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 aus     ");
         Serial.println("Pumpe manuell aus");
-        pump1_state = 2;
+        pump1_state_ = 2;
         digitalWrite(PUMP1_PIN, HIGH);
         button1_timer_ = millis();
       }
@@ -125,7 +125,7 @@ void loop() {
         lcd.setCursor(0, 0);
         lcd.print("Automatik 1 ein   ");
         Serial.println("Automatik 1 eingeschaltet");
-        pump1_state = 0;
+        pump1_state_ = 0;
         button1_timer_ = millis();
         automatik();
       }
@@ -134,30 +134,30 @@ void loop() {
 
   if (timespan_button2 > DEBOUNCE) {
     if (button2_state == LOW) {
-      if (pump2_state == 0) {
+      if (pump2_state_ == 0) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 2 an      ");
         Serial.println("Pumpe manuell ein");
-        pump2_state = 1;
+        pump2_state_ = 1;
         button2_timer_ = millis();
       }
-      else if (pump2_state == 1) {
+      else if (pump2_state_ == 1) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 2 aus     ");
         Serial.println("Pumpe manuell aus");
-        pump2_state = 2;
+        pump2_state_ = 2;
         button2_timer_ = millis();
       }
-      else if (pump2_state == 2) {
+      else if (pump2_state_ == 2) {
         lcd.setCursor(0, 0);
         lcd.print("Automatik 2 ein ");
         Serial.println("Automatik 2 eingeschaltet");
-        pump2_state = 0;
+        pump2_state_ = 0;
         button2_timer_ = millis();
       }
     }
   }
-  get_Distance();
-  automatik();
+  
+ automatik(get_Distance());
 
 }
