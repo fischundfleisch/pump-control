@@ -1,11 +1,13 @@
 // todo: Timeout = 5 Minuten, nach jedem Button pressen timeout = 0, if timeout = 5 minuten, DISPLAY_ON = LOW
-// README: 
+// README:
 // Fehler 418: Teekessel hat zu wenig/zu viel Wasser, falscher Wert (passiert zb bei Wassertropfen am Ultraschall
 
 
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
+const int TRIG_TANK_PIN = 0;
+const int ECHO_TANK_PIN = 1;
 const int TRIGGER_PIN = 7;
 const int ECHO_PIN = 6;
 const int DISPLAY_PIN = 13;
@@ -25,8 +27,12 @@ int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = auto
 int pump2_state = 0;
 
 long dist_cm = 0;
+long tank_level = 0;
 
 void setup() {
+  pinMode(TRIG_TANK_PIN, OUTPUT);
+  pinMode(ECHO_TANK_PIN, INPUT);
+  digitalWrite(ECHO_TANK_PIN, LOW);
   pinMode(TRIGGER_PIN, OUTPUT);
   pinMode(ECHO_PIN, INPUT);
   digitalWrite(ECHO_PIN, LOW);
@@ -40,37 +46,53 @@ void setup() {
   lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
   lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
   lcd.print("Willkommen!");
- // Serial.begin(9600);
- // delay(1000);
+  // Serial.begin(9600);
+  // delay(1000);
 }
 
 void automatik() {                            // derzeit nur für PUMPE 1!!
   unsigned long timespan_pump1 = millis() - pump1_timer_;
 
   if (dist_cm >= 0 && dist_cm < 40) {       // wenn Distanz passt...
-    if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
-      if (pump1_state == 4 || pump1_state == 0) {   // und Pumpe vorher nicht an war oder per Hand gerade auf Automatik gestellt wurde...
-        digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
-        lcd.begin(16, 2);
-        lcd.setCursor(0,0);
-        lcd.print("Pumpe 1 Aut ON  ");
-        pump1_timer_ = millis();
-        pump1_state = 1;
-        
+    get_Tank_level();
+    if (tank_level > 8) {
+      if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
+        if (pump1_state == 4 || pump1_state == 0) {   // und Pumpe vorher nicht an war oder per Hand gerade auf Automatik gestellt wurde...
+          digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
+          lcd.begin(16, 2);
+          lcd.setCursor(0, 0);
+          lcd.print("Pumpe 1 Aut ON  ");
+          pump1_timer_ = millis();
+          pump1_state = 1;
+        }
       }
       else {
         digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
         lcd.begin(16, 2);
-        lcd.setCursor(0,0);
+        lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 AUT OFF  ");
         pump1_timer_ = millis();
         pump1_state = 4;
       }
     }
+    else if (tank_level <= 8) {
+      lcd.begin(16,2);
+      lcd.setCursor(0,0);
+      lcd.print("Tank voll, Ablauf pruefen");
+      digitalWrite(PUMP1_PIN, HIGH);
+      pump1_state = 4;
+    }
+    else if (tank_level > 30) {
+      lcd.begin(16,2);
+      lcd.setCursor(0,0);
+      lcd.print("Tank Sensor Failure");
+      digitalWrite(PUMP1_PIN, HIGH);
+      pump1_state = 4;
+    }
   }
   else if (dist_cm > 40) {
     digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
-    lcd.setCursor(0,0);
+    lcd.setCursor(0, 0);
     lcd.print("Fehler 418      ");
   }
 }
@@ -82,6 +104,7 @@ void get_Distance() {
 
   if (time_span > SCAN_FREQ) {
     digitalWrite(TRIGGER_PIN, LOW);
+    digitalWrite(ECHO_PIN, LOW);
     delay(5);
     digitalWrite(TRIGGER_PIN, HIGH);
     delay(10);
@@ -93,9 +116,25 @@ void get_Distance() {
     lcd.setCursor(0, 1);
     lcd.print("Abstand: ");
     lcd.print(distance);
-    lcd.print(" cm  ");
+    lcd.print(" cm    ");
     scan_timer_ = millis();
   }
+}
+
+void get_Tank_level() {
+  long duration = 0;
+  long distance = 0;
+
+  digitalWrite(TRIG_TANK_PIN, LOW);
+  digitalWrite(ECHO_TANK_PIN, LOW);
+  delay(5);
+  digitalWrite(TRIG_TANK_PIN, HIGH);
+  delay(10);
+  digitalWrite(TRIG_TANK_PIN, LOW);
+  duration = pulseIn(ECHO_TANK_PIN, HIGH);
+  distance = ((duration / 2.) * 0.03432) + 0.5;
+
+  tank_level = distance;
 }
 
 void loop() {
@@ -106,15 +145,15 @@ void loop() {
   bool button1_state = digitalRead(BUTTON1_PIN);
   bool button2_state = digitalRead(BUTTON2_PIN);
 
-//  Serial.println(button1_state);
-//  Serial.println(button2_state);
+  //  Serial.println(button1_state);
+  //  Serial.println(button2_state);
 
   if (timespan_button1 > DEBOUNCE) {
     if (button1_state == LOW) {
       if (pump1_state == 0) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 an      ");
-    //    Serial.println("Pumpe manuell ein");
+        //    Serial.println("Pumpe manuell ein");
         pump1_state = 1;
         digitalWrite(PUMP1_PIN, LOW);
         button1_timer_ = millis();
@@ -122,7 +161,7 @@ void loop() {
       else if (pump1_state == 1) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 aus     ");
-    //    Serial.println("Pumpe manuell aus");
+        //    Serial.println("Pumpe manuell aus");
         pump1_state = 2;
         digitalWrite(PUMP1_PIN, HIGH);
         button1_timer_ = millis();
@@ -130,7 +169,7 @@ void loop() {
       else if (pump1_state == 2) {
         lcd.setCursor(0, 0);
         lcd.print("Automatik 1 ein   ");
-    //    Serial.println("Automatik 1 eingeschaltet");
+        //    Serial.println("Automatik 1 eingeschaltet");
         pump1_state = 0;
         button1_timer_ = millis();
         automatik();
@@ -143,21 +182,21 @@ void loop() {
       if (pump2_state == 0) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 2 an      ");
-     //   Serial.println("Pumpe manuell ein");
+        //   Serial.println("Pumpe manuell ein");
         pump2_state = 1;
         button2_timer_ = millis();
       }
       else if (pump2_state == 1) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 2 aus     ");
-    //    Serial.println("Pumpe manuell aus");
+        //    Serial.println("Pumpe manuell aus");
         pump2_state = 2;
         button2_timer_ = millis();
       }
       else if (pump2_state == 2) {
         lcd.setCursor(0, 0);
         lcd.print("Automatik 2 ein ");
-   //     Serial.println("Automatik 2 eingeschaltet");
+        //     Serial.println("Automatik 2 eingeschaltet");
         pump2_state = 0;
         button2_timer_ = millis();
       }
