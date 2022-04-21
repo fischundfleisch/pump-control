@@ -11,16 +11,12 @@ const int ECHO_TANK_PIN = 1;
 const int TRIGGER_PIN = 7;
 const int ECHO_PIN = 6;
 const int DISPLAY_PIN = 13;
-const int BUTTON1_PIN = 8;
-const int BUTTON2_PIN = 9;
 const int PUMP1_PIN = 10;
 const unsigned long SCAN_FREQ = 10UL * 1000UL;
 const unsigned long DEBOUNCE = 1UL * 1000UL;
 const unsigned long PUMP1_ON = 1UL * 60UL * 1000UL;
 
 unsigned long scan_timer_ = 0;
-unsigned long button1_timer_ = 0;
-unsigned long button2_timer_ = 0;
 unsigned long pump1_timer_ = 0;
 
 int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
@@ -139,24 +135,17 @@ void get_Tank_level() {
 
 void loop() {
   unsigned long act_time = millis();
-  unsigned long timespan_button1 = act_time - button1_timer_;
-  unsigned long timespan_button2 = act_time - button2_timer_;
-
-  bool button1_state = digitalRead(BUTTON1_PIN);
-  bool button2_state = digitalRead(BUTTON2_PIN);
 
   //  Serial.println(button1_state);
   //  Serial.println(button2_state);
 
-  if (timespan_button1 > DEBOUNCE) {
-    if (button1_state == LOW) {
+
       if (pump1_state == 0) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 an      ");
         //    Serial.println("Pumpe manuell ein");
         pump1_state = 1;
         digitalWrite(PUMP1_PIN, LOW);
-        button1_timer_ = millis();
       }
       else if (pump1_state == 1) {
         lcd.setCursor(0, 0);
@@ -164,41 +153,13 @@ void loop() {
         //    Serial.println("Pumpe manuell aus");
         pump1_state = 2;
         digitalWrite(PUMP1_PIN, HIGH);
-        button1_timer_ = millis();
       }
       else if (pump1_state == 2) {
         lcd.setCursor(0, 0);
         lcd.print("Automatik 1 ein   ");
         //    Serial.println("Automatik 1 eingeschaltet");
         pump1_state = 0;
-        button1_timer_ = millis();
         automatik();
-      }
-    }
-  }
-
-  if (timespan_button2 > DEBOUNCE) {
-    if (button2_state == LOW) {
-      if (pump2_state == 0) {
-        lcd.setCursor(0, 0);
-        lcd.print("Pumpe 2 an      ");
-        //   Serial.println("Pumpe manuell ein");
-        pump2_state = 1;
-        button2_timer_ = millis();
-      }
-      else if (pump2_state == 1) {
-        lcd.setCursor(0, 0);
-        lcd.print("Pumpe 2 aus     ");
-        //    Serial.println("Pumpe manuell aus");
-        pump2_state = 2;
-        button2_timer_ = millis();
-      }
-      else if (pump2_state == 2) {
-        lcd.setCursor(0, 0);
-        lcd.print("Automatik 2 ein ");
-        //     Serial.println("Automatik 2 eingeschaltet");
-        pump2_state = 0;
-        button2_timer_ = millis();
       }
     }
   }
