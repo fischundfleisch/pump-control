@@ -20,7 +20,6 @@ unsigned long scan_timer_ = 0;
 unsigned long pump1_timer_ = 0;
 
 int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
-int pump2_state = 0;
 
 long dist_cm = 0;
 long tank_level = 0;
@@ -34,16 +33,13 @@ void setup() {
   digitalWrite(ECHO_PIN, LOW);
   pinMode(DISPLAY_PIN, OUTPUT);
   digitalWrite(DISPLAY_PIN, HIGH);
-  pinMode(BUTTON1_PIN, INPUT);
-  pinMode(BUTTON2_PIN, INPUT);
+
   pinMode(PUMP1_PIN, OUTPUT);
   digitalWrite(PUMP1_PIN, HIGH);    // fürs Relais muss HIGH für aus, LOW für an sein
 
   lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
   lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
   lcd.print("Willkommen!");
-  // Serial.begin(9600);
-  // delay(1000);
 }
 
 void automatik() {                            // derzeit nur für PUMPE 1!!
@@ -53,7 +49,6 @@ void automatik() {                            // derzeit nur für PUMPE 1!!
     get_Tank_level();
     if (tank_level > 8) {
       if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
-        if (pump1_state == 4 || pump1_state == 0) {   // und Pumpe vorher nicht an war oder per Hand gerade auf Automatik gestellt wurde...
           digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
           lcd.begin(16, 2);
           lcd.setCursor(0, 0);
@@ -136,14 +131,9 @@ void get_Tank_level() {
 void loop() {
   unsigned long act_time = millis();
 
-  //  Serial.println(button1_state);
-  //  Serial.println(button2_state);
-
-
       if (pump1_state == 0) {
         lcd.setCursor(0, 0);
         lcd.print("Pumpe 1 an      ");
-        //    Serial.println("Pumpe manuell ein");
         pump1_state = 1;
         digitalWrite(PUMP1_PIN, LOW);
       }
