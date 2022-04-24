@@ -1,8 +1,3 @@
-// todo: Timeout = 5 Minuten, nach jedem Button pressen timeout = 0, if timeout = 5 minuten, DISPLAY_ON = LOW
-// README:
-// Fehler 418: Teekessel hat zu wenig/zu viel Wasser, falscher Wert (passiert zb bei Wassertropfen am Ultraschall
-
-
 #include <LiquidCrystal.h>
 LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
 
@@ -21,7 +16,7 @@ unsigned long pump1_timer_ = 0;
 
 int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
 
-long dist_cm = 0;
+long distance_barrel = 0;
 long tank_level = 0;
 
 void setup() {
@@ -40,6 +35,7 @@ void setup() {
   lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
   lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
   lcd.print("Willkommen!");
+  delay(5000);
 }
 
 void get_Tank_level() {
@@ -58,13 +54,13 @@ void get_Tank_level() {
   tank_level = distance;
 }
 
-
-void automatik() {                            // derzeit nur für PUMPE 1!!
+void automatik() {
   unsigned long timespan_pump1 = millis() - pump1_timer_;
-    get_Tank_level();
-  if (dist_cm >= 0 && dist_cm < 40) {       // wenn Distanz passt...
-    if (tank_level > 8) {
-      if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
+  get_Tank_level();
+  if (pump1_state == 0) {     // wenn Pumpe zuvor ausgeschaltet
+    if (distance_barrel >= 0 && distance_barrel < 40) {     // und der Wasserstand in der Tonne passt
+      if (tank_level > 8) {     // und der Stand im Fischtank passt
+        if (timespan_pump1 > PUMP1_ON) {    // und die Zeit passt
           digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
           lcd.begin(16, 2);
           lcd.setCursor(0, 0);
@@ -72,37 +68,37 @@ void automatik() {                            // derzeit nur für PUMPE 1!!
           pump1_timer_ = millis();
           pump1_state = 1;
         }
-      else {
-        digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
+      }
+      else if (tank_level <= 8) {
         lcd.begin(16, 2);
         lcd.setCursor(0, 0);
-        lcd.print("Pumpe 1 AUT OFF  ");
-        pump1_timer_ = millis();
+        lcd.print("Tank voll, Ablauf pruefen");
+        digitalWrite(PUMP1_PIN, HIGH);
+        pump1_state = 4;
+      }
+      else if (tank_level > 30) {
+        lcd.begin(16, 2);
+        lcd.setCursor(0, 0);
+        lcd.print("Tank Sensor Failure");
+        digitalWrite(PUMP1_PIN, HIGH);
         pump1_state = 4;
       }
     }
-    else if (tank_level <= 8) {
-      lcd.begin(16,2);
-      lcd.setCursor(0,0);
-      lcd.print("Tank voll, Ablauf pruefen");
-      digitalWrite(PUMP1_PIN, HIGH);
-      pump1_state = 4;
-    }
-    else if (tank_level > 30) {
-      lcd.begin(16,2);
-      lcd.setCursor(0,0);
-      lcd.print("Tank Sensor Failure");
-      digitalWrite(PUMP1_PIN, HIGH);
-      pump1_state = 4;
+    else if (distance_barrel > 40) {
+      digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
+      lcd.setCursor(0, 0);
+      lcd.print("Fehler 418      ");
     }
   }
-  else if (dist_cm > 40) {
-    digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
+  else if ((pump1_state == 1) && (timespan_pump1 > PUMP1_ON)) {
+    digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
+    lcd.begin(16, 2);
     lcd.setCursor(0, 0);
-    lcd.print("Fehler 418      ");
+    lcd.print("Pumpe 1 AUT OFF  ");
+    pump1_timer_ = millis();
+    pump1_state = 4;
   }
 }
-
 void get_Distance() {
   unsigned long time_span = millis() - scan_timer_;
   long duration = 0;
@@ -117,7 +113,7 @@ void get_Distance() {
     digitalWrite(TRIGGER_PIN, LOW);
     duration = pulseIn(ECHO_PIN, HIGH); //returns micros
     distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
-    dist_cm = distance;
+    distance_barrel = distance;
 
     lcd.setCursor(0, 1);
     lcd.print("Abstand: ");
