@@ -42,11 +42,27 @@ void setup() {
   lcd.print("Willkommen!");
 }
 
+void get_Tank_level() {
+  long duration = 0;
+  long distance = 0;
+
+  digitalWrite(TRIG_TANK_PIN, LOW);
+  digitalWrite(ECHO_TANK_PIN, LOW);
+  delay(5);
+  digitalWrite(TRIG_TANK_PIN, HIGH);
+  delay(10);
+  digitalWrite(TRIG_TANK_PIN, LOW);
+  duration = pulseIn(ECHO_TANK_PIN, HIGH);
+  distance = ((duration / 2.) * 0.03432) + 0.5;
+
+  tank_level = distance;
+}
+
+
 void automatik() {                            // derzeit nur für PUMPE 1!!
   unsigned long timespan_pump1 = millis() - pump1_timer_;
-
-  if (dist_cm >= 0 && dist_cm < 40) {       // wenn Distanz passt...
     get_Tank_level();
+  if (dist_cm >= 0 && dist_cm < 40) {       // wenn Distanz passt...
     if (tank_level > 8) {
       if (timespan_pump1 > PUMP1_ON) {        // ... und Zeit passt...
           digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
@@ -56,7 +72,6 @@ void automatik() {                            // derzeit nur für PUMPE 1!!
           pump1_timer_ = millis();
           pump1_state = 1;
         }
-      }
       else {
         digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
         lcd.begin(16, 2);
@@ -112,21 +127,6 @@ void get_Distance() {
   }
 }
 
-void get_Tank_level() {
-  long duration = 0;
-  long distance = 0;
-
-  digitalWrite(TRIG_TANK_PIN, LOW);
-  digitalWrite(ECHO_TANK_PIN, LOW);
-  delay(5);
-  digitalWrite(TRIG_TANK_PIN, HIGH);
-  delay(10);
-  digitalWrite(TRIG_TANK_PIN, LOW);
-  duration = pulseIn(ECHO_TANK_PIN, HIGH);
-  distance = ((duration / 2.) * 0.03432) + 0.5;
-
-  tank_level = distance;
-}
 
 void loop() {
   unsigned long act_time = millis();
@@ -151,8 +151,6 @@ void loop() {
         pump1_state = 0;
         automatik();
       }
-    }
-  }
   get_Distance();
   automatik();
 
