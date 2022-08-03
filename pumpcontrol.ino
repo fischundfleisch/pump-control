@@ -1,153 +1,158 @@
-#include <LiquidCrystal.h>
-LiquidCrystal lcd(12, 11, 5, 4, 3, 2);
+const int TRIGGER_FISH_PIN = 2;
+const int ECHO_FISH_PIN = 3;
+const int TRIGGER_BARREL_PIN = 4;
+const int ECHO_BARREL_PIN = 5;
 
-const int TRIG_TANK_PIN = 0;
-const int ECHO_TANK_PIN = 1;
-const int TRIGGER_PIN = 7;
-const int ECHO_PIN = 6;
-const int DISPLAY_PIN = 13;
-const int PUMP1_PIN = 10;
-const unsigned long SCAN_FREQ = 10UL * 1000UL;
-const unsigned long DEBOUNCE = 1UL * 1000UL;
-const unsigned long PUMP1_ON = 1UL * 60UL * 1000UL;
+const int PUMP_MAIN_PIN = 6;
+const int VALVE_1_PIN = 7; // geht zum Olivenbaum
+const int VALVE_2_PIN = 8;
+const int VALVE_3_PIN = 9;
+
+const unsigned long SCAN_FREQ = 10UL * 1000UL; // sec * millis = 10 sec
+const unsigned long PUMP_MAIN_ON = 60UL * 1000UL;
+const unsigned long VALVE_1_ON = 60UL * 1000UL;
+const unsigned long VALVE_2_ON = 60UL * 1000UL;
+const unsigned long VALVE_3_ON = 60UL * 1000UL;
 
 unsigned long scan_timer_ = 0;
-unsigned long pump1_timer_ = 0;
-
-int pump1_state = 0; //0 = automatik, 1 = manuell ein, 2 = manuell aus, 3 = automatik ein, 4 = automatik aus
+unsigned long pump_timer_ = 0;
+unsigned long valve_1_timer_ = 0;
+unsigned long valve_2_timer_ = 0;
+unsigned long valve_3_timer_ = 0;
 
 long distance_barrel = 0;
-long tank_level = 0;
+long last_distance_barrel = 0;
+long distance_fish = 0;
+long last_distance_fish = 0;
 
 void setup() {
-  pinMode(TRIG_TANK_PIN, OUTPUT);
-  pinMode(ECHO_TANK_PIN, INPUT);
-  digitalWrite(ECHO_TANK_PIN, LOW);
-  pinMode(TRIGGER_PIN, OUTPUT);
-  pinMode(ECHO_PIN, INPUT);
-  digitalWrite(ECHO_PIN, LOW);
-  pinMode(DISPLAY_PIN, OUTPUT);
-  digitalWrite(DISPLAY_PIN, HIGH);
 
-  pinMode(PUMP1_PIN, OUTPUT);
-  digitalWrite(PUMP1_PIN, HIGH);    // fürs Relais muss HIGH für aus, LOW für an sein
+  Serial.begin(9600);
+  Serial.println("booting...");
 
-  lcd.begin(16, 2);  //16 Zeichen, 2 Zeilen
-  lcd.setCursor(0, 0); //Position Zeichen 0, Zeile 0
-  lcd.print("Willkommen!");
-  delay(5000);
+  pinMode(TRIGGER_FISH_PIN, OUTPUT);
+  pinMode(ECHO_FISH_PIN, INPUT);
+  pinMode(TRIGGER_BARREL_PIN, OUTPUT);
+  pinMode(ECHO_BARREL_PIN, INPUT);
+
+  pinMode(PUMP_MAIN_PIN, OUTPUT);
+  digitalWrite(PUMP_MAIN_PIN, HIGH);
+  pinMode(VALVE_1_PIN, OUTPUT);
+  digitalWrite(VALVE_1_PIN, HIGH);
+  pinMode(VALVE_2_PIN, OUTPUT);
+  digitalWrite(VALVE_2_PIN, HIGH);
+  pinMode(VALVE_3_PIN, OUTPUT);
+  digitalWrite(VALVE_3_PIN, HIGH);
+
+  Serial.println("booting complete");
+  delay(1000);
 }
 
-void get_Tank_level() {
+long get_Distance_Fish() {
   long duration = 0;
   long distance = 0;
 
-  digitalWrite(TRIG_TANK_PIN, LOW);
-  digitalWrite(ECHO_TANK_PIN, LOW);
+  digitalWrite(TRIGGER_FISH_PIN, LOW);
+  digitalWrite(ECHO_FISH_PIN, LOW);
   delay(5);
-  digitalWrite(TRIG_TANK_PIN, HIGH);
+  digitalWrite(TRIGGER_FISH_PIN, HIGH);
   delay(10);
-  digitalWrite(TRIG_TANK_PIN, LOW);
-  duration = pulseIn(ECHO_TANK_PIN, HIGH);
-  distance = ((duration / 2.) * 0.03432) + 0.5;
-
-  tank_level = distance;
+  digitalWrite(TRIGGER_FISH_PIN, LOW);
+  duration = pulseIn(ECHO_FISH_PIN, HIGH);
+  distance = ((duration / 2.) * 0.03432) + 0, 5;
+  return distance;
 }
 
-void automatik() {
-  unsigned long timespan_pump1 = millis() - pump1_timer_;
-  get_Tank_level();
-  if (pump1_state == 0) {     // wenn Pumpe zuvor ausgeschaltet
-    if (distance_barrel >= 0 && distance_barrel < 40) {     // und der Wasserstand in der Tonne passt
-      if (tank_level > 8) {     // und der Stand im Fischtank passt
-        if (timespan_pump1 > PUMP1_ON) {    // und die Zeit passt
-          digitalWrite(PUMP1_PIN, LOW); // wird Pumpe eingeschaltet
-          lcd.begin(16, 2);
-          lcd.setCursor(0, 0);
-          lcd.print("Pumpe 1 Aut ON  ");
-          pump1_timer_ = millis();
-          pump1_state = 1;
-        }
-      }
-      else if (tank_level <= 8) {
-        lcd.begin(16, 2);
-        lcd.setCursor(0, 0);
-        lcd.print("Tank voll, Ablauf pruefen");
-        digitalWrite(PUMP1_PIN, HIGH);
-        pump1_state = 4;
-      }
-      else if (tank_level > 30) {
-        lcd.begin(16, 2);
-        lcd.setCursor(0, 0);
-        lcd.print("Tank Sensor Failure");
-        digitalWrite(PUMP1_PIN, HIGH);
-        pump1_state = 4;
-      }
-    }
-    else if (distance_barrel > 40) {
-      digitalWrite(PUMP1_PIN, HIGH);        // Wenn Distanz nicht passt, schalten wir aus. #
-      lcd.setCursor(0, 0);
-      lcd.print("Fehler 418      ");
-    }
-  }
-  else if ((pump1_state == 1) && (timespan_pump1 > PUMP1_ON)) {
-    digitalWrite(PUMP1_PIN, HIGH);      // Wenn Zeit und Distanz passen, aber PUMP1_ON Zeit vergangen ist, schalten wir aus.
-    lcd.begin(16, 2);
-    lcd.setCursor(0, 0);
-    lcd.print("Pumpe 1 AUT OFF  ");
-    pump1_timer_ = millis();
-    pump1_state = 4;
-  }
-}
-void get_Distance() {
-  unsigned long time_span = millis() - scan_timer_;
+long get_Distance_Barrel() {
   long duration = 0;
   long distance = 0;
 
-  if (time_span > SCAN_FREQ) {
-    digitalWrite(TRIGGER_PIN, LOW);
-    digitalWrite(ECHO_PIN, LOW);
-    delay(5);
-    digitalWrite(TRIGGER_PIN, HIGH);
-    delay(10);
-    digitalWrite(TRIGGER_PIN, LOW);
-    duration = pulseIn(ECHO_PIN, HIGH); //returns micros
-    distance = ((duration / 2.) * 0.03432) + 0.5; // +0.5 zum Runden
-    distance_barrel = distance;
-
-    lcd.setCursor(0, 1);
-    lcd.print("Abstand: ");
-    lcd.print(distance);
-    lcd.print(" cm    ");
-    scan_timer_ = millis();
-  }
+  digitalWrite(TRIGGER_BARREL_PIN, LOW);
+  digitalWrite(ECHO_BARREL_PIN, LOW);
+  delay(5);
+  digitalWrite(TRIGGER_BARREL_PIN, HIGH);
+  delay(10);
+  digitalWrite(TRIGGER_BARREL_PIN, LOW);
+  duration = pulseIn(ECHO_BARREL_PIN, HIGH);
+  distance = ((duration / 2.) * 0.03432) + 0, 5;
+  return distance;
 }
-
 
 void loop() {
-  unsigned long act_time = millis();
+  unsigned long time_span = millis() - scan_timer_;
+  unsigned long time_span_v1 = millis() - valve_1_timer_;
+  unsigned long time_span_v2 = millis() - valve_2_timer_;
+  unsigned long time_span_v3 = millis() - valve_3_timer_;
+  unsigned long time_span_pump = millis() - pump_timer_;
+  
+  if (time_span > SCAN_FREQ) {
+    long distance_fish = get_Distance_Fish();
+    long distance_barrel = get_Distance_Barrel();
 
-      if (pump1_state == 0) {
-        lcd.setCursor(0, 0);
-        lcd.print("Pumpe 1 an      ");
-        pump1_state = 1;
-        digitalWrite(PUMP1_PIN, LOW);
+    if (distance_barrel < 12) || (distance_barrel < last_distance_barrel) { //die 12 unbedingt überprüfen sonst zieht es aus Versehen die ganze Zeit Strom
+     int state_valve_1 = digitalRead(VALVE_1_PIN);
+     int state_valve_2 = digitalRead(VALVE_2_PIN);
+     int state_valve_3 = digitalRead(VALVE_3_PIN);
+
+      if (state_valve_1 == HIGH) && (state_valve_2 == HIGH) && (state_valve_3 == HIGH) { // wenn alle Ventile bis dato ausgeschaltet sind
+        // wir fangen beim ersten Ventil an, lassen es ein bis Timer abgelaufen und schalten dann zwei und drei
+        digitalWrite(VALVE_1_PIN, LOW);
+        valve_1_timer_ = millis();
+        Serial.println("Ventil 1 ein");
       }
-      else if (pump1_state == 1) {
-        lcd.setCursor(0, 0);
-        lcd.print("Pumpe 1 aus     ");
-        //    Serial.println("Pumpe manuell aus");
-        pump1_state = 2;
-        digitalWrite(PUMP1_PIN, HIGH);
+      if (state_valve_1 == LOW) {
+        if (time_span_v1 > VALVE_1_ON){ // Von Ventil 1 ist die Zeit abgelaufen
+          digitalWrite(VALVE_1_PIN, HIGH);
+          digitalWrite(VALVE_2_PIN, LOW);
+          valve_2_timer_ = millis();
+          Serial.println("Ventil 1 aus");
+          Serial.println("Ventil 2 ein");
+        }
       }
-      else if (pump1_state == 2) {
-        lcd.setCursor(0, 0);
-        lcd.print("Automatik 1 ein   ");
-        //    Serial.println("Automatik 1 eingeschaltet");
-        pump1_state = 0;
-        automatik();
+      if (state_valve_2 == LOW) {
+        if (time_span_v2 > VALVE_2_ON) { //Von Ventil 2 ist die Zeit abgelaufen
+          digitalWrite(VALVE_2_PIN, HIGH);
+          digitalWrite(VALVE_3_PIN, LOW);
+          valve_3_timer_ = millis();
+          Serial.println("Ventil 2 aus");
+          Serial.println(Ventil 3 ein");
+        }
       }
-  get_Distance();
-  automatik();
+      if (state_valve_3 == LOW) {
+        if (time_span_v3 > VALVE_3_ON) {
+          digitalWrite(VALVE_3_PIN, HIGH);
+          Serial.println("Ventil 3 aus"); 
+        }
+      }
+    }
+
+    if (distance_barrel > 45) || (distance_fish < 8) {
+      return;
+    }
+
+    if (distance_barrel >= last_distance_barrel) {
+      int pump_state = digitalRead(PUMP_MAIN_PIN);
+      Serial.print("Pumpenstatus: ");
+      Serial.println(pump_state);
+
+      if (pump_state == HIGH) && (time_span_pump > PUMP_MAIN_ON) {
+        digitalWrite(PUMP_MAIN_PIN, LOW);
+        pump_timer_ = millis();
+        Serial.println("Pumpe ein");
+      }
+     if (pump_state == LOW) && (time_span_pump > PUMP_MAIN_ON){
+      // Pumpe lang genug gelaufen, ausschalten
+      // rein nur zur Sicherheit auch eine Minute ausgeschaltet lassen
+      // dafür verwenden wir den pump_timer_ noch einmal
+      
+      digitalWrite(PUMP_MAIN_PIN, HIGH);
+      pump_timer_ = millis();
+     }
+    }      
+    
+    scan_timer_ = millis();
+    last_distance_barrel = distance_barrel;
+    last_distance_fish = distance_fish;
+  }
 
 }
