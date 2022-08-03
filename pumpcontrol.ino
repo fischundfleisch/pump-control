@@ -84,24 +84,24 @@ void loop() {
   unsigned long time_span_v2 = millis() - valve_2_timer_;
   unsigned long time_span_v3 = millis() - valve_3_timer_;
   unsigned long time_span_pump = millis() - pump_timer_;
-  
+
   if (time_span > SCAN_FREQ) {
     long distance_fish = get_Distance_Fish();
     long distance_barrel = get_Distance_Barrel();
 
-    if (distance_barrel < 12) || (distance_barrel < last_distance_barrel) { //die 12 unbedingt überprüfen sonst zieht es aus Versehen die ganze Zeit Strom
-     int state_valve_1 = digitalRead(VALVE_1_PIN);
-     int state_valve_2 = digitalRead(VALVE_2_PIN);
-     int state_valve_3 = digitalRead(VALVE_3_PIN);
+    if (distance_barrel < 12) { //die 12 unbedingt überprüfen sonst zieht es aus Versehen die ganze Zeit Strom
+      int state_valve_1 = digitalRead(VALVE_1_PIN);
+      int state_valve_2 = digitalRead(VALVE_2_PIN);
+      int state_valve_3 = digitalRead(VALVE_3_PIN);
 
-      if (state_valve_1 == HIGH) && (state_valve_2 == HIGH) && (state_valve_3 == HIGH) { // wenn alle Ventile bis dato ausgeschaltet sind
+      if ((state_valve_1 == HIGH) && (state_valve_2 == HIGH) && (state_valve_3 == HIGH)) { // wenn alle Ventile bis dato ausgeschaltet sind
         // wir fangen beim ersten Ventil an, lassen es ein bis Timer abgelaufen und schalten dann zwei und drei
         digitalWrite(VALVE_1_PIN, LOW);
         valve_1_timer_ = millis();
         Serial.println("Ventil 1 ein");
       }
       if (state_valve_1 == LOW) {
-        if (time_span_v1 > VALVE_1_ON){ // Von Ventil 1 ist die Zeit abgelaufen
+        if (time_span_v1 > VALVE_1_ON) { // Von Ventil 1 ist die Zeit abgelaufen
           digitalWrite(VALVE_1_PIN, HIGH);
           digitalWrite(VALVE_2_PIN, LOW);
           valve_2_timer_ = millis();
@@ -115,44 +115,45 @@ void loop() {
           digitalWrite(VALVE_3_PIN, LOW);
           valve_3_timer_ = millis();
           Serial.println("Ventil 2 aus");
-          Serial.println(Ventil 3 ein");
+          Serial.println("Ventil 3 ein");
         }
       }
       if (state_valve_3 == LOW) {
         if (time_span_v3 > VALVE_3_ON) {
           digitalWrite(VALVE_3_PIN, HIGH);
-          Serial.println("Ventil 3 aus"); 
+          Serial.println("Ventil 3 aus");
         }
       }
-    }
 
-    if (distance_barrel > 45) || (distance_fish < 8) {
-      return;
-    }
 
-    if (distance_barrel >= last_distance_barrel) {
-      int pump_state = digitalRead(PUMP_MAIN_PIN);
-      Serial.print("Pumpenstatus: ");
-      Serial.println(pump_state);
-
-      if (pump_state == HIGH) && (time_span_pump > PUMP_MAIN_ON) {
-        digitalWrite(PUMP_MAIN_PIN, LOW);
-        pump_timer_ = millis();
-        Serial.println("Pumpe ein");
+      if ((distance_barrel > 45) || (distance_fish < 8)) {
+        return;
       }
-     if (pump_state == LOW) && (time_span_pump > PUMP_MAIN_ON){
-      // Pumpe lang genug gelaufen, ausschalten
-      // rein nur zur Sicherheit auch eine Minute ausgeschaltet lassen
-      // dafür verwenden wir den pump_timer_ noch einmal
-      
-      digitalWrite(PUMP_MAIN_PIN, HIGH);
-      pump_timer_ = millis();
-     }
-    }      
-    
-    scan_timer_ = millis();
-    last_distance_barrel = distance_barrel;
-    last_distance_fish = distance_fish;
-  }
 
+      if (distance_barrel >= last_distance_barrel) {
+        int pump_state = digitalRead(PUMP_MAIN_PIN);
+        Serial.print("Pumpenstatus: ");
+        Serial.println(pump_state);
+
+        if ((pump_state == HIGH) && (time_span_pump > PUMP_MAIN_ON)) {
+          digitalWrite(PUMP_MAIN_PIN, LOW);
+          pump_timer_ = millis();
+          Serial.println("Pumpe ein");
+        }
+        if ((pump_state == LOW) && (time_span_pump > PUMP_MAIN_ON)) {
+          // Pumpe lang genug gelaufen, ausschalten
+          // rein nur zur Sicherheit auch eine Minute ausgeschaltet lassen
+          // dafür verwenden wir den pump_timer_ noch einmal
+
+          digitalWrite(PUMP_MAIN_PIN, HIGH);
+          pump_timer_ = millis();
+        }
+      }
+
+      scan_timer_ = millis();
+      last_distance_barrel = distance_barrel;
+      last_distance_fish = distance_fish;
+    }
+
+  }
 }
