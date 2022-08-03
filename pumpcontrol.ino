@@ -79,13 +79,17 @@ long get_Distance_Barrel() {
 }
 
 void loop() {
+  
   unsigned long time_span = millis() - scan_timer_;
   unsigned long time_span_v1 = millis() - valve_1_timer_;
   unsigned long time_span_v2 = millis() - valve_2_timer_;
   unsigned long time_span_v3 = millis() - valve_3_timer_;
   unsigned long time_span_pump = millis() - pump_timer_;
-
-  if (time_span > SCAN_FREQ) {
+  
+  if (time_span < SCAN_FREQ) {
+    return;
+  }
+  
     long distance_fish = get_Distance_Fish();
     long distance_barrel = get_Distance_Barrel();
 
@@ -154,6 +158,4 @@ void loop() {
       last_distance_barrel = distance_barrel;
       last_distance_fish = distance_fish;
     }
-
-  }
 }
