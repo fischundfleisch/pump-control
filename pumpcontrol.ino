@@ -13,12 +13,14 @@ const unsigned long PUMP_MAIN_ON = 60UL * 1000UL;
 const unsigned long VALVE_1_ON = 60UL * 1000UL;
 const unsigned long VALVE_2_ON = 60UL * 1000UL;
 const unsigned long VALVE_3_ON = 60UL * 1000UL;
+const unsigned long NO_RAIN = 2UL * 60UL * 60UL * 1000UL;
 
 unsigned long scan_timer_ = 0;
 unsigned long pump_timer_ = 0;
 unsigned long valve_1_timer_ = 0;
 unsigned long valve_2_timer_ = 0;
 unsigned long valve_3_timer_ = 0;
+unsigned long no_rain_timer_ = 0;
 
 long distance_barrel = 0;
 long last_distance_barrel = 0;
@@ -79,83 +81,99 @@ long get_Distance_Barrel() {
 }
 
 void loop() {
-  
+
   unsigned long time_span = millis() - scan_timer_;
   unsigned long time_span_v1 = millis() - valve_1_timer_;
   unsigned long time_span_v2 = millis() - valve_2_timer_;
   unsigned long time_span_v3 = millis() - valve_3_timer_;
   unsigned long time_span_pump = millis() - pump_timer_;
-  
+  unsigned long time_span_norain = millis() - no_rain_timer_;
+
   if (time_span < SCAN_FREQ) {
     return;
   }
-  
-    long distance_fish = get_Distance_Fish();
-    long distance_barrel = get_Distance_Barrel();
 
-    if (distance_barrel < 12) { //die 12 unbedingt überprüfen sonst zieht es aus Versehen die ganze Zeit Strom
-      int state_valve_1 = digitalRead(VALVE_1_PIN);
-      int state_valve_2 = digitalRead(VALVE_2_PIN);
-      int state_valve_3 = digitalRead(VALVE_3_PIN);
+  long distance_fish = get_Distance_Fish();
+  long distance_barrel = get_Distance_Barrel();
 
-      if ((state_valve_1 == HIGH) && (state_valve_2 == HIGH) && (state_valve_3 == HIGH)) { // wenn alle Ventile bis dato ausgeschaltet sind
-        // wir fangen beim ersten Ventil an, lassen es ein bis Timer abgelaufen und schalten dann zwei und drei
-        digitalWrite(VALVE_1_PIN, LOW);
-        valve_1_timer_ = millis();
-        Serial.println("Ventil 1 ein");
-      }
-      if (state_valve_1 == LOW) {
-        if (time_span_v1 > VALVE_1_ON) { // Von Ventil 1 ist die Zeit abgelaufen
-          digitalWrite(VALVE_1_PIN, HIGH);
-          digitalWrite(VALVE_2_PIN, LOW);
-          valve_2_timer_ = millis();
-          Serial.println("Ventil 1 aus");
-          Serial.println("Ventil 2 ein");
-        }
-      }
-      if (state_valve_2 == LOW) {
-        if (time_span_v2 > VALVE_2_ON) { //Von Ventil 2 ist die Zeit abgelaufen
-          digitalWrite(VALVE_2_PIN, HIGH);
-          digitalWrite(VALVE_3_PIN, LOW);
-          valve_3_timer_ = millis();
-          Serial.println("Ventil 2 aus");
-          Serial.println("Ventil 3 ein");
-        }
-      }
-      if (state_valve_3 == LOW) {
-        if (time_span_v3 > VALVE_3_ON) {
-          digitalWrite(VALVE_3_PIN, HIGH);
-          Serial.println("Ventil 3 aus");
-        }
-      }
+  if (distance_barrel < 12) { //die 12 unbedingt überprüfen sonst zieht es aus Versehen die ganze Zeit Strom
+    int state_valve_1 = digitalRead(VALVE_1_PIN);
+    int state_valve_2 = digitalRead(VALVE_2_PIN);
+    int state_valve_3 = digitalRead(VALVE_3_PIN);
 
-
-      if ((distance_barrel > 45) || (distance_fish < 8)) {
-        return;
-      }
-
-      if (distance_barrel >= last_distance_barrel) {
-        int pump_state = digitalRead(PUMP_MAIN_PIN);
-        Serial.print("Pumpenstatus: ");
-        Serial.println(pump_state);
-
-        if ((pump_state == HIGH) && (time_span_pump > PUMP_MAIN_ON)) {
-          digitalWrite(PUMP_MAIN_PIN, LOW);
-          pump_timer_ = millis();
-          Serial.println("Pumpe ein");
-        }
-        if ((pump_state == LOW) && (time_span_pump > PUMP_MAIN_ON)) {
-          // Pumpe lang genug gelaufen, ausschalten
-          // rein nur zur Sicherheit auch eine Minute ausgeschaltet lassen
-          // dafür verwenden wir den pump_timer_ noch einmal
-
-          digitalWrite(PUMP_MAIN_PIN, HIGH);
-          pump_timer_ = millis();
-        }
-      }
-
-      scan_timer_ = millis();
-      last_distance_barrel = distance_barrel;
-      last_distance_fish = distance_fish;
+    if ((state_valve_1 == HIGH) && (state_valve_2 == HIGH) && (state_valve_3 == HIGH)) { // wenn alle Ventile bis dato ausgeschaltet sind
+      // wir fangen beim ersten Ventil an, lassen es ein bis Timer abgelaufen und schalten dann zwei und drei
+      digitalWrite(VALVE_1_PIN, LOW);
+      valve_1_timer_ = millis();
+      Serial.println("Ventil 1 ein");
     }
+    if (state_valve_1 == LOW) {
+      if (time_span_v1 > VALVE_1_ON) { // Von Ventil 1 ist die Zeit abgelaufen
+        digitalWrite(VALVE_1_PIN, HIGH);
+        digitalWrite(VALVE_2_PIN, LOW);
+        valve_2_timer_ = millis();
+        Serial.println("Ventil 1 aus");
+        Serial.println("Ventil 2 ein");
+      }
+    }
+    if (state_valve_2 == LOW) {
+      if (time_span_v2 > VALVE_2_ON) { //Von Ventil 2 ist die Zeit abgelaufen
+        digitalWrite(VALVE_2_PIN, HIGH);
+        digitalWrite(VALVE_3_PIN, LOW);
+        valve_3_timer_ = millis();
+        Serial.println("Ventil 2 aus");
+        Serial.println("Ventil 3 ein");
+      }
+    }
+    if (state_valve_3 == LOW) {
+      if (time_span_v3 > VALVE_3_ON) {
+        digitalWrite(VALVE_3_PIN, HIGH);
+        Serial.println("Ventil 3 aus");
+      }
+    }
+
+
+    if ((distance_barrel > 45) || (distance_fish < 8)) {
+      return;
+    }
+
+    if (distance_barrel > last_distance_barrel) {       //wenn es regnet und aktuelle Messung mehr als letzte, wird die Pumpe für eine Minute eingeschaltet wenn sie aus war, und für eine Minute
+      // ausgeschaltet wenn sie ein war
+      switch_pump();
+    }
+
+    if (distance_barrel <= last_distance_barrel) {      // wenn es schon länger nicht geregnet hat, wird ein anderer Timer dazwischen geschaltet und nur jede 2. Stunde für eine Minute
+      if (time_span_norain > NO_RAIN) {                 // eingeschaltet
+        digitalWrite(PUMP_MAIN_PIN, LOW);
+        delay(60000);
+        digitalWrite(PUMP_MAIN_PIN, HIGH);
+        no_rain_timer_ = millis();
+      }
+    }
+
+    scan_timer_ = millis();
+    last_distance_barrel = distance_barrel;
+    last_distance_fish = distance_fish;
+  }
+}
+
+void switch_pump() {
+    unsigned long time_span_pump = millis() - pump_timer_;
+  int pump_state = digitalRead(PUMP_MAIN_PIN);
+  Serial.print("Pumpenstatus: ");
+  Serial.println(pump_state);
+
+  if ((pump_state == HIGH) && (time_span_pump > PUMP_MAIN_ON)) {
+    digitalWrite(PUMP_MAIN_PIN, LOW);
+    pump_timer_ = millis();
+    Serial.println("Pumpe ein");
+  }
+  if ((pump_state == LOW) && (time_span_pump > PUMP_MAIN_ON)) {
+    // Pumpe lang genug gelaufen, ausschalten
+    // rein nur zur Sicherheit auch eine Minute ausgeschaltet lassen
+    // dafür verwenden wir den pump_timer_ noch einmal
+
+    digitalWrite(PUMP_MAIN_PIN, HIGH);
+    pump_timer_ = millis();
+  }
 }
