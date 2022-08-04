@@ -174,10 +174,11 @@ void loop() {
       }
     }
 
-    scan_timer_ = millis();
+
     last_distance_barrel = distance_barrel;
     last_distance_fish = distance_fish;
   }
+      scan_timer_ = millis();
 }
 
 void switch_pump() {
